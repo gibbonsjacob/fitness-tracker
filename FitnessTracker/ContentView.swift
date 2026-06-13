@@ -9,53 +9,50 @@ import SwiftUI
 import SwiftData
 
 struct ContentView: View {
-    @Environment(\.modelContext) private var modelContext
-    @Query private var items: [Item]
+    @Query(sort: \CardioActivity.date, order: .reverse) private var activities: [CardioActivity]
 
     var body: some View {
-        NavigationSplitView {
-            List {
-                ForEach(items) { item in
-                    NavigationLink {
-                        Text("Item at \(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))")
-                    } label: {
-                        Text(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))
-                    }
+        NavigationStack {
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Cardio Tracker")
+                    .font(.largeTitle)
+                    .bold()
+
+                metricSection(title: "Running", type: .running)
+                metricSection(title: "Walking", type: .walking)
+
+                Spacer()
+
+                NavigationLink("Log Activity") {
+                    LogActivityView()
                 }
-                .onDelete(perform: deleteItems)
+                .buttonStyle(.borderedProminent)
+                .frame(maxWidth: .infinity)
             }
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    EditButton()
-                }
-                ToolbarItem {
-                    Button(action: addItem) {
-                        Label("Add Item", systemImage: "plus")
-                    }
-                }
-            }
-        } detail: {
-            Text("Select an item")
+            .padding()
         }
     }
 
-    private func addItem() {
-        withAnimation {
-            let newItem = Item(timestamp: Date())
-            modelContext.insert(newItem)
-        }
-    }
+    @ViewBuilder
+    private func metricSection(title: String, type: ActivityType) -> some View {
+        let monthActivities = CardioActivity.activitiesThisMonth(for: type, from: activities)
+        let distance = CardioActivity.totalDistance(for: monthActivities)
+        let pace = CardioActivity.averagePace(for: monthActivities)
 
-    private func deleteItems(offsets: IndexSet) {
-        withAnimation {
-            for index in offsets {
-                modelContext.delete(items[index])
-            }
+        VStack(alignment: .leading) {
+            Text(title)
+                .font(.headline)
+            Text("This Month: \(CardioActivity.formatDistance(distance))")
+            Text("Avg Pace: \(pace ?? "—")")
         }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(.secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }
 
 #Preview {
     ContentView()
-        .modelContainer(for: Item.self, inMemory: true)
+        .modelContainer(for: CardioActivity.self, inMemory: true)
 }
