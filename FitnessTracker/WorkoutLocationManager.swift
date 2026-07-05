@@ -111,8 +111,16 @@ final class WorkoutLocationManager: NSObject {
     }
 
     private func configureBackgroundUpdates(enabled: Bool) {
-        manager.showsBackgroundLocationIndicator = enabled
-        manager.allowsBackgroundLocationUpdates = enabled
+        let backgroundModes = Bundle.main.object(forInfoDictionaryKey: "UIBackgroundModes") as? [String] ?? []
+        let canUseBackgroundLocation = backgroundModes.contains("location")
+
+        if enabled && canUseBackgroundLocation {
+            manager.showsBackgroundLocationIndicator = true
+            manager.allowsBackgroundLocationUpdates = true
+        } else {
+            manager.allowsBackgroundLocationUpdates = false
+            manager.showsBackgroundLocationIndicator = false
+        }
     }
 
     private func processLocation(_ location: CLLocation) {
