@@ -55,6 +55,10 @@ extension CardioActivity {
         activities.reduce(0) { $0 + $1.distanceMiles }
     }
 
+    static func totalDuration(for activities: [CardioActivity]) -> Double {
+        activities.reduce(0) { $0 + $1.durationSeconds }
+    }
+
     static func averagePace(for activities: [CardioActivity]) -> String? {
         let totalDistance = activities.reduce(0) { $0 + $1.distanceMiles }
         let totalDuration = activities.reduce(0) { $0 + $1.durationSeconds }
@@ -70,5 +74,22 @@ extension CardioActivity {
 
     static func formatDistance(_ miles: Double) -> String {
         String(format: "%.1f mi", miles)
+    }
+
+    static func formatDuration(_ seconds: Double) -> String {
+        let total = Int(seconds)
+        let hours = total / 3600
+        let minutes = (total % 3600) / 60
+        let secs = total % 60
+
+        if hours > 0 {
+            return String(format: "%d:%02d:%02d", hours, minutes, secs)
+        }
+        return String(format: "%d:%02d", minutes, secs)
+    }
+
+    var formattedPace: String {
+        guard distanceMiles > 0 else { return "—" }
+        return Self.formatPace(secondsPerMile: durationSeconds / distanceMiles)
     }
 }
