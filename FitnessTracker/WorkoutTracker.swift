@@ -9,6 +9,7 @@ struct CompletedWorkout: Identifiable, Hashable {
     let id = UUID()
     let activityType: ActivityType
     let durationSeconds: Double
+    let distanceMiles: Double
     let date: Date
 }
 
@@ -25,8 +26,22 @@ final class WorkoutTracker {
     var phase: Phase = .ready
     var elapsedSeconds: TimeInterval = 0
 
-    private var timer: Timer?
+    private let locationManager = WorkoutLocationManager()
+    private var timerTask: Task<Void, Never>?
     private var workoutStartDate: Date?
+
+    var distanceMiles: Double {
+        locationManager.distanceMiles
+    }
+
+    var gpsStatusMessage: String {
+        locationManager.statusMessage
+    }
+
+    var currentPace: String? {
+        guard distanceMiles > 0, elapsedSeconds > 0 else { return nil }
+        return CardioActivity.formatPace(secondsPerMile: elapsedSeconds / distanceMiles)
+    }
 
     var canStart: Bool {
         phase == .ready
@@ -58,6 +73,7 @@ final class WorkoutTracker {
         workoutStartDate = Date()
         elapsedSeconds = 0
         phase = .active
+        locationManager.startTracking()
         startTimer()
     }
 
@@ -65,6 +81,7 @@ final class WorkoutTracker {
         guard phase == .active else { return }
 
         phase = .paused
+        locationManager.pauseTracking()
         stopTimer()
     }
 
@@ -72,11 +89,13 @@ final class WorkoutTracker {
         guard phase == .paused else { return }
 
         phase = .active
+        locationManager.resumeTracking()
         startTimer()
     }
 
     func finish() -> CompletedWorkout? {
         stopTimer()
+        locationManager.stopTracking()
 
         guard elapsedSeconds > 0 else {
             reset()
@@ -86,6 +105,7 @@ final class WorkoutTracker {
         let workout = CompletedWorkout(
             activityType: activityType,
             durationSeconds: elapsedSeconds,
+            distanceMiles: distanceMiles,
             date: workoutDate
         )
         reset()
@@ -101,20 +121,22 @@ final class WorkoutTracker {
         phase = .ready
         elapsedSeconds = 0
         workoutStartDate = nil
+        locationManager.reset()
     }
 
     private func startTimer() {
-        timer?.invalidate()
-        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
-            Task { @MainActor in
-                guard let self, self.phase == .active else { return }
-                self.elapsedSeconds += 1
+        timerTask?.cancel()
+        timerTask = Task { @MainActor in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(1))
+                guard !Task.isCancelled, phase == .active else { continue }
+                elapsedSeconds += 1
             }
         }
     }
 
     private func stopTimer() {
-        timer?.invalidate()
-        timer = nil
+        timerTask?.cancel()
+        timerTask = nil
     }
 }
