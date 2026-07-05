@@ -93,6 +93,14 @@ struct LogActivityView: View {
                 }
             }
 
+            if existingActivity?.hasRoute == true {
+                Section("Route") {
+                    WorkoutRouteMapView(coordinates: existingActivity?.routeCoordinates() ?? [])
+                        .frame(height: 200)
+                        .listRowInsets(EdgeInsets())
+                }
+            }
+
             if focusedField != nil {
                 Section {
                     Button("Done") {

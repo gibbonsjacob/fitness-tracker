@@ -15,6 +15,7 @@ final class WorkoutLocationManager: NSObject {
     var distanceMiles: Double = 0
     var authorizationStatus: CLAuthorizationStatus
     var isTracking = false
+    private(set) var routeCoordinates: [CLLocationCoordinate2D] = []
 
     private let manager = CLLocationManager()
     private var lastLocation: CLLocation?
@@ -53,6 +54,7 @@ final class WorkoutLocationManager: NSObject {
         manager.activityType = .fitness
         manager.desiredAccuracy = kCLLocationAccuracyBest
         manager.distanceFilter = 5
+        manager.pausesLocationUpdatesAutomatically = false
         authorizationStatus = manager.authorizationStatus
     }
 
@@ -70,6 +72,7 @@ final class WorkoutLocationManager: NSObject {
 
     func pauseTracking() {
         isTracking = false
+        configureBackgroundUpdates(enabled: false)
         manager.stopUpdatingLocation()
     }
 
@@ -78,12 +81,14 @@ final class WorkoutLocationManager: NSObject {
 
         lastLocation = nil
         isTracking = true
+        configureBackgroundUpdates(enabled: true)
         manager.startUpdatingLocation()
     }
 
     func stopTracking() {
         pendingTrackingStart = false
         isTracking = false
+        configureBackgroundUpdates(enabled: false)
         manager.stopUpdatingLocation()
     }
 
@@ -92,14 +97,22 @@ final class WorkoutLocationManager: NSObject {
         lastLocation = nil
         accumulatedDistanceMeters = 0
         distanceMiles = 0
+        routeCoordinates = []
     }
 
     private func beginTracking() {
         lastLocation = nil
         accumulatedDistanceMeters = 0
         distanceMiles = 0
+        routeCoordinates = []
         isTracking = true
+        configureBackgroundUpdates(enabled: true)
         manager.startUpdatingLocation()
+    }
+
+    private func configureBackgroundUpdates(enabled: Bool) {
+        manager.showsBackgroundLocationIndicator = enabled
+        manager.allowsBackgroundLocationUpdates = enabled
     }
 
     private func processLocation(_ location: CLLocation) {
@@ -108,6 +121,8 @@ final class WorkoutLocationManager: NSObject {
               location.horizontalAccuracy <= Self.maxHorizontalAccuracy else {
             return
         }
+
+        routeCoordinates.append(location.coordinate)
 
         if let lastLocation {
             let segmentMeters = location.distance(from: lastLocation)

@@ -3,8 +3,14 @@
 //  FitnessTracker
 //
 
+import CoreLocation
 import Foundation
 import SwiftData
+
+struct RoutePoint: Codable, Hashable {
+    var latitude: Double
+    var longitude: Double
+}
 
 enum ActivityType: String, Codable, CaseIterable {
     case running
@@ -24,17 +30,47 @@ final class CardioActivity {
     var distanceMiles: Double
     var durationSeconds: Double
     var date: Date
+    var routeData: Data?
 
     init(
         activityType: ActivityType,
         distanceMiles: Double,
         durationSeconds: Double,
-        date: Date
+        date: Date,
+        routeData: Data? = nil
     ) {
         self.activityType = activityType
         self.distanceMiles = distanceMiles
         self.durationSeconds = durationSeconds
         self.date = date
+        self.routeData = routeData
+    }
+
+    func routeCoordinates() -> [CLLocationCoordinate2D] {
+        guard let routeData,
+              let points = try? JSONDecoder().decode([RoutePoint].self, from: routeData) else {
+            return []
+        }
+
+        return points.map {
+            CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude)
+        }
+    }
+
+    func setRouteCoordinates(_ coordinates: [CLLocationCoordinate2D]) {
+        guard !coordinates.isEmpty else {
+            routeData = nil
+            return
+        }
+
+        let points = coordinates.map {
+            RoutePoint(latitude: $0.latitude, longitude: $0.longitude)
+        }
+        routeData = try? JSONEncoder().encode(points)
+    }
+
+    var hasRoute: Bool {
+        routeCoordinates().count >= 2
     }
 }
 

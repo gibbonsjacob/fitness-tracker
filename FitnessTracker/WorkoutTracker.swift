@@ -3,6 +3,7 @@
 //  FitnessTracker
 //
 
+import CoreLocation
 import Foundation
 
 struct CompletedWorkout: Identifiable, Hashable {
@@ -11,6 +12,13 @@ struct CompletedWorkout: Identifiable, Hashable {
     let durationSeconds: Double
     let distanceMiles: Double
     let date: Date
+    let routePoints: [RoutePoint]
+
+    var routeCoordinates: [CLLocationCoordinate2D] {
+        routePoints.map {
+            CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude)
+        }
+    }
 }
 
 @Observable
@@ -32,6 +40,10 @@ final class WorkoutTracker {
 
     var distanceMiles: Double {
         locationManager.distanceMiles
+    }
+
+    var routeCoordinates: [CLLocationCoordinate2D] {
+        locationManager.routeCoordinates
     }
 
     var gpsStatusMessage: String {
@@ -95,6 +107,9 @@ final class WorkoutTracker {
 
     func finish() -> CompletedWorkout? {
         stopTimer()
+
+        let capturedDistance = distanceMiles
+        let capturedRoute = routeCoordinates
         locationManager.stopTracking()
 
         guard elapsedSeconds > 0 else {
@@ -105,8 +120,11 @@ final class WorkoutTracker {
         let workout = CompletedWorkout(
             activityType: activityType,
             durationSeconds: elapsedSeconds,
-            distanceMiles: distanceMiles,
-            date: workoutDate
+            distanceMiles: capturedDistance,
+            date: workoutDate,
+            routePoints: capturedRoute.map {
+                RoutePoint(latitude: $0.latitude, longitude: $0.longitude)
+            }
         )
         reset()
         return workout

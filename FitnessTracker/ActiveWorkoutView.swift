@@ -15,88 +15,91 @@ struct ActiveWorkoutView: View {
     @State private var showDiscardConfirmation = false
 
     var body: some View {
-        VStack(spacing: 24) {
-            Picker("Type", selection: $tracker.activityType) {
-                ForEach(ActivityType.allCases, id: \.self) { type in
-                    Text(type.label).tag(type)
-                }
-            }
-            .pickerStyle(.segmented)
-            .disabled(tracker.isInProgress)
-
-            if !tracker.isInProgress {
-                Text(tracker.gpsStatusMessage)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            Spacer()
-
-            VStack(spacing: 8) {
-                Text(statusLabel)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-
-                Text(CardioActivity.formatDurationClock(tracker.elapsedSeconds))
-                    .font(.system(size: 56, weight: .bold, design: .rounded))
-                    .monospacedDigit()
-                    .contentTransition(.numericText())
-            }
-
-            if tracker.isInProgress {
-                HStack(spacing: 32) {
-                    WorkoutMetric(
-                        title: "Distance",
-                        value: CardioActivity.formatDistance(tracker.distanceMiles)
-                    )
-                    WorkoutMetric(
-                        title: "Pace",
-                        value: tracker.currentPace ?? "—"
-                    )
-                }
-
-                Text(tracker.gpsStatusMessage)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            Spacer()
-
-            VStack(spacing: 12) {
-                if tracker.canStart {
-                    Button("Start") {
-                        tracker.start()
+        ScrollView {
+            VStack(spacing: 20) {
+                Picker("Type", selection: $tracker.activityType) {
+                    ForEach(ActivityType.allCases, id: \.self) { type in
+                        Text(type.label).tag(type)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .frame(maxWidth: .infinity)
+                }
+                .pickerStyle(.segmented)
+                .disabled(tracker.isInProgress)
+
+                if !tracker.isInProgress {
+                    Text(tracker.gpsStatusMessage)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
 
-                if tracker.canPause {
-                    Button("Pause") {
-                        tracker.pause()
-                    }
-                    .buttonStyle(.bordered)
-                    .frame(maxWidth: .infinity)
+                if tracker.isInProgress {
+                    WorkoutRouteMapView(coordinates: tracker.routeCoordinates)
+                        .frame(height: 200)
                 }
 
-                if tracker.canResume {
-                    Button("Resume") {
-                        tracker.resume()
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .frame(maxWidth: .infinity)
+                VStack(spacing: 8) {
+                    Text(statusLabel)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+
+                    Text(CardioActivity.formatDurationClock(tracker.elapsedSeconds))
+                        .font(.system(size: 56, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                        .contentTransition(.numericText())
                 }
 
-                if tracker.canFinish {
-                    Button("Finish") {
-                        finishWorkout()
+                if tracker.isInProgress {
+                    HStack(spacing: 32) {
+                        WorkoutMetric(
+                            title: "Distance",
+                            value: CardioActivity.formatDistance(tracker.distanceMiles)
+                        )
+                        WorkoutMetric(
+                            title: "Pace",
+                            value: tracker.currentPace ?? "—"
+                        )
                     }
-                    .buttonStyle(.borderedProminent)
-                    .frame(maxWidth: .infinity)
+
+                    Text(tracker.gpsStatusMessage)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                VStack(spacing: 12) {
+                    if tracker.canStart {
+                        Button("Start") {
+                            tracker.start()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .frame(maxWidth: .infinity)
+                    }
+
+                    if tracker.canPause {
+                        Button("Pause") {
+                            tracker.pause()
+                        }
+                        .buttonStyle(.bordered)
+                        .frame(maxWidth: .infinity)
+                    }
+
+                    if tracker.canResume {
+                        Button("Resume") {
+                            tracker.resume()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .frame(maxWidth: .infinity)
+                    }
+
+                    if tracker.canFinish {
+                        Button("Finish") {
+                            finishWorkout()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .frame(maxWidth: .infinity)
+                    }
                 }
             }
+            .padding()
         }
-        .padding()
         .navigationTitle("Workout")
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(tracker.isInProgress)
@@ -163,6 +166,7 @@ struct ActiveWorkoutView: View {
             durationSeconds: workout.durationSeconds,
             date: workout.date
         )
+        activity.setRouteCoordinates(workout.routeCoordinates)
         modelContext.insert(activity)
         try? modelContext.save()
     }
