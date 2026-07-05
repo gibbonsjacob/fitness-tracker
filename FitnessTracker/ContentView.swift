@@ -23,6 +23,11 @@ struct ContentView: View {
 
                 Spacer()
 
+                NavigationLink("View Analytics") {
+                    AnalyticsView()
+                }
+                .frame(maxWidth: .infinity)
+
                 NavigationLink("View History") {
                     HistoryView()
                 }
