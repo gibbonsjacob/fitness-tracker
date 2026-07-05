@@ -28,6 +28,8 @@ struct HistoryView: View {
     @Environment(\.modelContext) private var modelContext
 
     @State private var filter: HistoryFilter = .all
+    @State private var activityToDelete: CardioActivity?
+    @State private var showDeleteConfirmation = false
 
     private var filteredActivities: [CardioActivity] {
         activities.filter { filter.matches($0) }
@@ -70,15 +72,36 @@ struct HistoryView: View {
             } else {
                 List {
                     ForEach(filteredActivities) { activity in
-                        ActivityHistoryRow(activity: activity, showType: filter == .all)
+                        NavigationLink {
+                            LogActivityView(existingActivity: activity)
+                        } label: {
+                            ActivityHistoryRow(activity: activity, showType: filter == .all)
+                        }
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                            Button("Delete", role: .destructive) {
+                                activityToDelete = activity
+                                showDeleteConfirmation = true
+                            }
+                        }
                     }
-                    .onDelete(perform: deleteActivities)
                 }
                 .listStyle(.plain)
             }
         }
         .navigationTitle("History")
         .navigationBarTitleDisplayMode(.inline)
+        .confirmationDialog(
+            "Delete this activity?",
+            isPresented: $showDeleteConfirmation,
+            titleVisibility: .visible,
+            presenting: activityToDelete
+        ) { activity in
+            Button("Delete Activity", role: .destructive) {
+                deleteActivity(activity)
+            }
+        } message: { activity in
+            Text("\(activity.activityType.label) on \(activity.date.formatted(date: .abbreviated, time: .omitted))")
+        }
     }
 
     private var emptyTitle: String {
@@ -103,12 +126,10 @@ struct HistoryView: View {
         }
     }
 
-    private func deleteActivities(at offsets: IndexSet) {
-        for index in offsets {
-            modelContext.delete(filteredActivities[index])
-        }
-
+    private func deleteActivity(_ activity: CardioActivity) {
+        modelContext.delete(activity)
         try? modelContext.save()
+        activityToDelete = nil
     }
 }
 

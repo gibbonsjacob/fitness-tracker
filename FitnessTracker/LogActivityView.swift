@@ -10,23 +10,43 @@ struct LogActivityView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
 
+    private let existingActivity: CardioActivity?
+
     @State private var activityType: ActivityType
-    @State private var distanceText = ""
+    @State private var distanceText: String
     @State private var durationText: String
     @State private var date: Date
     @State private var isFormValid = false
     @FocusState private var focusedField: Field?
 
     init(
+        existingActivity: CardioActivity? = nil,
         initialActivityType: ActivityType = .running,
         initialDurationSeconds: Double? = nil,
+        initialDistanceMiles: Double? = nil,
         initialDate: Date? = nil
     ) {
-        _activityType = State(initialValue: initialActivityType)
-        _durationText = State(
-            initialValue: Self.formatDuration(seconds: initialDurationSeconds ?? 1_800)
-        )
-        _date = State(initialValue: initialDate ?? Date())
+        self.existingActivity = existingActivity
+
+        if let existingActivity {
+            _activityType = State(initialValue: existingActivity.activityType)
+            _durationText = State(
+                initialValue: Self.formatDuration(seconds: existingActivity.durationSeconds)
+            )
+            _distanceText = State(
+                initialValue: Self.formatDistanceInput(existingActivity.distanceMiles)
+            )
+            _date = State(initialValue: existingActivity.date)
+        } else {
+            _activityType = State(initialValue: initialActivityType)
+            _durationText = State(
+                initialValue: Self.formatDuration(seconds: initialDurationSeconds ?? 1_800)
+            )
+            _distanceText = State(
+                initialValue: Self.formatDistanceInput(initialDistanceMiles)
+            )
+            _date = State(initialValue: initialDate ?? Date())
+        }
     }
 
     private enum Field {
@@ -97,7 +117,7 @@ struct LogActivityView: View {
                 normalizeDurationText()
             }
         }
-        .navigationTitle("Log Activity")
+        .navigationTitle(existingActivity == nil ? "Log Activity" : "Edit Activity")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
@@ -130,19 +150,33 @@ struct LogActivityView: View {
         guard let distance = parseDistance(distanceText), distance > 0 else { return }
         guard let durationSeconds = parsedDurationSeconds else { return }
 
-        let activity = CardioActivity(
-            activityType: activityType,
-            distanceMiles: distance,
-            durationSeconds: durationSeconds,
-            date: date
-        )
-        modelContext.insert(activity)
+        if let existingActivity {
+            existingActivity.activityType = activityType
+            existingActivity.distanceMiles = distance
+            existingActivity.durationSeconds = durationSeconds
+            existingActivity.date = date
 
-        do {
-            try modelContext.save()
-            dismiss()
-        } catch {
-            modelContext.delete(activity)
+            do {
+                try modelContext.save()
+                dismiss()
+            } catch {
+                return
+            }
+        } else {
+            let activity = CardioActivity(
+                activityType: activityType,
+                distanceMiles: distance,
+                durationSeconds: durationSeconds,
+                date: date
+            )
+            modelContext.insert(activity)
+
+            do {
+                try modelContext.save()
+                dismiss()
+            } catch {
+                modelContext.delete(activity)
+            }
         }
     }
 
@@ -183,6 +217,11 @@ struct LogActivityView: View {
         let minutes = (total % 3600) / 60
         let secs = total % 60
         return String(format: "%d:%02d:%02d", hours, minutes, secs)
+    }
+
+    private static func formatDistanceInput(_ miles: Double?) -> String {
+        guard let miles, miles > 0 else { return "" }
+        return String(format: "%.2f", miles)
     }
 
     private static func parseDuration(_ text: String) -> Double? {

@@ -4,8 +4,10 @@
 //
 
 import SwiftUI
+import SwiftData
 
 struct ActiveWorkoutView: View {
+    @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
 
     @State private var tracker = WorkoutTracker()
@@ -22,6 +24,12 @@ struct ActiveWorkoutView: View {
             .pickerStyle(.segmented)
             .disabled(tracker.isInProgress)
 
+            if !tracker.isInProgress {
+                Text(tracker.gpsStatusMessage)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
             Spacer()
 
             VStack(spacing: 8) {
@@ -33,6 +41,23 @@ struct ActiveWorkoutView: View {
                     .font(.system(size: 56, weight: .bold, design: .rounded))
                     .monospacedDigit()
                     .contentTransition(.numericText())
+            }
+
+            if tracker.isInProgress {
+                HStack(spacing: 32) {
+                    WorkoutMetric(
+                        title: "Distance",
+                        value: CardioActivity.formatDistance(tracker.distanceMiles)
+                    )
+                    WorkoutMetric(
+                        title: "Pace",
+                        value: tracker.currentPace ?? "—"
+                    )
+                }
+
+                Text(tracker.gpsStatusMessage)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             Spacer()
@@ -64,7 +89,7 @@ struct ActiveWorkoutView: View {
 
                 if tracker.canFinish {
                     Button("Finish") {
-                        completedWorkout = tracker.finish()
+                        finishWorkout()
                     }
                     .buttonStyle(.borderedProminent)
                     .frame(maxWidth: .infinity)
@@ -94,17 +119,19 @@ struct ActiveWorkoutView: View {
                 dismiss()
             }
         } message: {
-            Text("Your tracked time will not be saved.")
+            Text("Your tracked time and distance will not be saved.")
         }
         .navigationDestination(item: $completedWorkout) { workout in
             LogActivityView(
                 initialActivityType: workout.activityType,
                 initialDurationSeconds: workout.durationSeconds,
+                initialDistanceMiles: workout.distanceMiles > 0 ? workout.distanceMiles : nil,
                 initialDate: workout.date
             )
         }
         .animation(.default, value: tracker.phase)
         .animation(.default, value: tracker.elapsedSeconds)
+        .animation(.default, value: tracker.distanceMiles)
     }
 
     private var statusLabel: String {
@@ -117,10 +144,49 @@ struct ActiveWorkoutView: View {
             "Paused"
         }
     }
+
+    private func finishWorkout() {
+        guard let workout = tracker.finish() else { return }
+
+        if workout.distanceMiles > 0 {
+            saveWorkout(workout)
+            dismiss()
+        } else {
+            completedWorkout = workout
+        }
+    }
+
+    private func saveWorkout(_ workout: CompletedWorkout) {
+        let activity = CardioActivity(
+            activityType: workout.activityType,
+            distanceMiles: workout.distanceMiles,
+            durationSeconds: workout.durationSeconds,
+            date: workout.date
+        )
+        modelContext.insert(activity)
+        try? modelContext.save()
+    }
+}
+
+private struct WorkoutMetric: View {
+    let title: String
+    let value: String
+
+    var body: some View {
+        VStack(spacing: 4) {
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Text(value)
+                .font(.title3.weight(.semibold))
+                .monospacedDigit()
+        }
+    }
 }
 
 #Preview {
     NavigationStack {
         ActiveWorkoutView()
     }
+    .modelContainer(for: CardioActivity.self, inMemory: true)
 }
