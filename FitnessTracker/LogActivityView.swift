@@ -10,12 +10,24 @@ struct LogActivityView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
 
-    @State private var activityType: ActivityType = .running
+    @State private var activityType: ActivityType
     @State private var distanceText = ""
-    @State private var durationText = "0:30:00"
-    @State private var date = Date()
+    @State private var durationText: String
+    @State private var date: Date
     @State private var isFormValid = false
     @FocusState private var focusedField: Field?
+
+    init(
+        initialActivityType: ActivityType = .running,
+        initialDurationSeconds: Double? = nil,
+        initialDate: Date? = nil
+    ) {
+        _activityType = State(initialValue: initialActivityType)
+        _durationText = State(
+            initialValue: Self.formatDuration(seconds: initialDurationSeconds ?? 1_800)
+        )
+        _date = State(initialValue: initialDate ?? Date())
+    }
 
     private enum Field {
         case distance

@@ -88,6 +88,14 @@ extension CardioActivity {
         return String(format: "%d:%02d", minutes, secs)
     }
 
+    static func formatDurationClock(_ seconds: Double) -> String {
+        let total = Int(seconds)
+        let hours = total / 3600
+        let minutes = (total % 3600) / 60
+        let secs = total % 60
+        return String(format: "%d:%02d:%02d", hours, minutes, secs)
+    }
+
     var formattedPace: String {
         guard distanceMiles > 0 else { return "—" }
         return Self.formatPace(secondsPerMile: durationSeconds / distanceMiles)

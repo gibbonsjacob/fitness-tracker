@@ -28,6 +28,12 @@ struct ContentView: View {
                 }
                 .frame(maxWidth: .infinity)
 
+                NavigationLink("Start Workout") {
+                    ActiveWorkoutView()
+                }
+                .buttonStyle(.bordered)
+                .frame(maxWidth: .infinity)
+
                 NavigationLink("Log Activity") {
                     LogActivityView()
                 }
